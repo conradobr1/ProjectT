@@ -57,6 +57,18 @@ A câmera usa o app de câmera do Android por intent. O manifesto declara Intern
 
 ## Conferência dos exercícios
 
+### Como demonstrar os três requisitos de fotos
+
+Tudo funciona no mesmo projeto e no mesmo aplicativo Flutter:
+
+| Requisito | Implementação | Como conferir |
+| --- | --- | --- |
+| Site que recebe foto e descrição | [Formulário PHP](api/index.php) e [upload](api/upload.php) | Com Apache e MySQL ligados, abra `http://localhost/api/`, escolha uma foto, escreva a descrição e envie. |
+| App que envia fotos para o site | [Tela de câmera e envio](lib/main.dart) | Na aba **Câmera**, tire a foto, preencha a descrição e toque em **Enviar foto para o site**. |
+| Janela que mostra todas as fotos, uma por vez | [Galeria Flutter](lib/galeria.dart) e [consulta PHP](api/fotos.php) | Na aba **Galeria**, toque em **Atualizar** e navegue com **Anterior** e **Próxima foto**. O contador mostra a posição na lista. |
+
+As fotos enviadas pelo app aparecem no site, e as enviadas pelo site aparecem no app após atualizar a galeria. `localhost` se refere ao computador com XAMPP; no emulador Android o endereço é `http://10.0.2.2/api/`. O GitHub guarda o código e o APK; o PHP e o MySQL precisam ser executados no XAMPP ou em uma hospedagem compatível.
+
 - API que salva texto no banco: implementada.
 - API que retorna JSON do próximo ID: implementada.
 - App que envia e lê textos: implementado.
