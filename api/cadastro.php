@@ -6,10 +6,15 @@ if ($nome === '' || preg_match('//u', $nome) !== 1 || preg_match_all('/./us', $n
 }
 try {
     $db = banco();
+    $db->beginTransaction();
     $consulta = $db->prepare('INSERT INTO usuarios (nome, email, senha_hash) VALUES (?, ?, ?)');
     $consulta->execute([$nome, $email, password_hash($senha, PASSWORD_DEFAULT)]);
-    responder(201, ['usuario' => ['id' => (int) $db->lastInsertId(), 'nome' => $nome, 'email' => $email]]);
+    $id = (int) $db->lastInsertId();
+    $token = criarSessao($db, $id);
+    $db->commit();
+    responder(201, ['token' => $token, 'usuario' => ['id' => $id, 'nome' => $nome, 'email' => $email]]);
 } catch (PDOException $e) {
+    if (isset($db) && $db->inTransaction()) $db->rollBack();
     if ($e->getCode() === '23000') responder(409, ['erro' => 'Este e-mail já está cadastrado.']);
     error_log($e->getMessage());
     responder(500, ['erro' => 'Não foi possível cadastrar. Confira o servidor.']);

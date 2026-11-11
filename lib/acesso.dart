@@ -8,8 +8,8 @@ const apiPadrao =
 
 class Acesso extends StatefulWidget {
   const Acesso({super.key, required this.conteudo});
-  final Widget Function(
-      String servidor, String nome, Future<void> Function() sair) conteudo;
+  final Widget Function(String servidor, String nome, String token,
+      Future<void> Function() sair) conteudo;
   @override
   State<Acesso> createState() => _AcessoState();
 }
@@ -45,7 +45,9 @@ class _AcessoState extends State<Acesso> {
           if (valor is Map<String, dynamic> &&
               valor['id'] is int &&
               valor['nome'] is String &&
-              valor['email'] is String) dados = valor;
+              valor['email'] is String &&
+              valor['token'] is String &&
+              (valor['token'] as String).isNotEmpty) dados = valor;
         } catch (_) {
           await prefs.remove('usuario');
         }
@@ -111,9 +113,12 @@ class _AcessoState extends State<Acesso> {
       if (perfil is! Map<String, dynamic> ||
           perfil['id'] is! int ||
           perfil['nome'] is! String ||
-          perfil['email'] is! String) {
+          perfil['email'] is! String ||
+          dados['token'] is! String ||
+          (dados['token'] as String).isEmpty) {
         throw const FormatException('Resposta inválida do servidor.');
       }
+      perfil['token'] = dados['token'];
       final prefs = preferencias ?? await SharedPreferences.getInstance();
       if (!await prefs.setString('api_url', base) ||
           !await prefs.setString('usuario', jsonEncode(perfil))) {
@@ -157,7 +162,8 @@ class _AcessoState extends State<Acesso> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (usuario != null) {
-      return widget.conteudo(servidor.text, usuario!['nome'] as String, sair);
+      return widget.conteudo(servidor.text, usuario!['nome'] as String,
+          usuario!['token'] as String, sair);
     }
     return Scaffold(
         body: SafeArea(

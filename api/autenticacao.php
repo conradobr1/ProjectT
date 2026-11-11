@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/conexao.php';
+require __DIR__ . '/sessao.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 function responder(int $status, array $dados): void {

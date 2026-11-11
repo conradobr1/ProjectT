@@ -7,7 +7,7 @@ try {
     if (!$usuario || !password_verify($senha, $usuario['senha_hash'])) {
         responder(401, ['erro' => 'E-mail ou senha incorretos.']);
     }
-    responder(200, ['usuario' => perfil($usuario)]);
+    responder(200, ['token' => criarSessao(banco(), (int) $usuario['id']), 'usuario' => perfil($usuario)]);
 } catch (PDOException $e) {
     error_log($e->getMessage());
     responder(500, ['erro' => 'Não foi possível entrar. Confira o servidor.']);

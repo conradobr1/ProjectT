@@ -45,7 +45,7 @@ JDK 17, compileSdk 34 e Kotlin 1.8.22. O APK usa a assinatura de depuração par
 
 ## API
 
-- salva.php?txt=texto: salva texto e retorna Texto salvo!
+- POST postagem.php (ou salva.php): recebe token, texto e foto opcional; retorna 201 com ID e foto_url.
 - busca.php?id=0: retorna o registro de menor ID maior que o informado, ou null.
 - POST upload.php: campos foto (arquivo) e descricao; retorna HTTP 201 com ID, URL relativa e descrição.
 - fotos.php: retorna a lista de fotos com id, url, descricao e criado_em.
@@ -69,7 +69,7 @@ Tudo funciona no mesmo projeto e no mesmo aplicativo Flutter:
 
 As fotos enviadas pelo app aparecem no site, e as enviadas pelo site aparecem no app após atualizar a galeria. `localhost` se refere ao computador com XAMPP; no emulador Android o endereço é `http://10.0.2.2/api/`. O GitHub guarda o código e o APK; o PHP e o MySQL precisam ser executados no XAMPP ou em uma hospedagem compatível.
 
-- API que salva texto no banco: implementada.
+- API que salva texto e foto opcional no banco: implementada.
 - API que retorna JSON do próximo ID: implementada.
 - App que envia e lê textos: implementado.
 - Foto com image_picker e visualização local: implementada.
@@ -94,5 +94,13 @@ Ao abrir o app, entre com e-mail e senha ou toque em **Criar uma conta** e infor
 - `POST cadastro.php`: campos `nome`, `email`, `senha`; retorna 201 com `usuario`. E-mail repetido retorna 409.
 - `POST login.php`: campos `email`, `senha`; retorna 200 com `usuario`. Credenciais incorretas retornam 401.
 - O MySQL guarda somente o hash da senha (`password_hash` / `password_verify`). As consultas usam parâmetros preparados.
-- O `shared_preferences` salva o perfil (ID, nome, e-mail) e a URL da API para manter o login entre aberturas. A senha não é salva no celular.
-- Este fluxo mantém uma sessão local. Os endpoints anteriores de publicações/fotos continuam públicos, sem autorização por usuário. Em hospedagem pública, use HTTPS e implemente tokens de sessão e limitação de tentativas antes de expor dados privados.
+- O `shared_preferences` salva o perfil (ID, nome, e-mail), o token da sessão e a URL da API para manter o login entre aberturas. A senha não é salva no celular.
+- O servidor valida o token para publicar e associa o autor à sessão. A leitura das publicações e a galeria antiga são públicas. Em hospedagem pública, use HTTPS e limite tentativas de login.
+
+## Postagem com foto opcional
+
+Na aba **Início**, escreva um texto de até 280 caracteres e, se quiser, toque em **Adicionar foto** (galeria) ou **Câmera**. A imagem aparece na prévia e pode ser removida antes de publicar. As publicações exibem autor, texto e foto, quando enviada. O texto é obrigatório; a imagem é opcional (JPEG, PNG ou WebP, até 8 MB).
+
+Para atualizar um banco existente sem apagar publicações, execute `C:/xampp/php/php.exe api/migrar_postagens.php`. A migração pode ser repetida. Copie os PHP atualizados para a pasta da API. Para banco novo, importe `api/banco.sql`.
+
+Login e cadastro agora retornam um token válido por 30 dias, salvo junto do perfil no `shared_preferences`. O banco guarda apenas o hash do token. O endpoint de postagem valida a sessão e determina o autor no servidor. Instalações com perfil antigo sem token precisam entrar novamente. A foto da publicação é independente dos envios da aba Câmera/Galeria.

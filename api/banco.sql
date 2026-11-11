@@ -3,6 +3,8 @@ USE mini_x;
 CREATE TABLE IF NOT EXISTS publicacoes (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     texto VARCHAR(280) NOT NULL,
+    usuario_id INT UNSIGNED NULL,
+    foto VARCHAR(100) NULL,
     criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS fotos (
@@ -17,4 +19,40 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email VARCHAR(254) NOT NULL UNIQUE,
     senha_hash VARCHAR(255) NOT NULL,
     criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sessoes (
+    token_hash CHAR(64) PRIMARY KEY,
+    usuario_id INT UNSIGNED NOT NULL,
+    expira_em DATETIME NOT NULL,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS amizades (
+    usuario_a INT UNSIGNED NOT NULL,
+    usuario_b INT UNSIGNED NOT NULL,
+    solicitante_id INT UNSIGNED NOT NULL,
+    status ENUM('pendente', 'aprovada') NOT NULL DEFAULT 'pendente',
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (usuario_a, usuario_b),
+    FOREIGN KEY (usuario_a) REFERENCES usuarios(id) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_b) REFERENCES usuarios(id) ON DELETE CASCADE,
+    FOREIGN KEY (solicitante_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS curtidas (
+    publicacao_id INT UNSIGNED NOT NULL,
+    usuario_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY (publicacao_id, usuario_id),
+    FOREIGN KEY (publicacao_id) REFERENCES publicacoes(id) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS comentarios (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    publicacao_id INT UNSIGNED NOT NULL,
+    usuario_id INT UNSIGNED NOT NULL,
+    texto VARCHAR(280) NOT NULL,
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX (publicacao_id, id),
+    FOREIGN KEY (publicacao_id) REFERENCES publicacoes(id) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'galeria.dart';
 import 'acesso.dart';
+import 'social.dart';
 
 void main() => runApp(const MiniX());
 
@@ -21,16 +22,24 @@ class MiniX extends StatelessWidget {
               const InputDecorationTheme(border: OutlineInputBorder()),
         ),
         home: Acesso(
-            conteudo: (servidor, nome, sair) =>
-                AppTwitter(baseUrl: servidor, nomeUsuario: nome, aoSair: sair)),
+            conteudo: (servidor, nome, token, sair) => AppTwitter(
+                baseUrl: servidor,
+                nomeUsuario: nome,
+                token: token,
+                aoSair: sair)),
       );
 }
 
 class AppTwitter extends StatefulWidget {
   const AppTwitter(
-      {super.key, this.baseUrl = apiPadrao, this.nomeUsuario, this.aoSair});
+      {super.key,
+      this.baseUrl = apiPadrao,
+      this.nomeUsuario,
+      this.token,
+      this.aoSair});
   final String baseUrl;
   final String? nomeUsuario;
+  final String? token;
   final Future<void> Function()? aoSair;
   @override
   State<AppTwitter> createState() => _AppTwitterState();
@@ -41,13 +50,12 @@ class _AppTwitterState extends State<AppTwitter> {
   final descricao = TextEditingController();
   int versaoGaleria = 0;
   late final servidor = TextEditingController(text: widget.baseUrl);
-  final List<Map<String, dynamic>> historico = [];
+  int versaoFeed = 0;
   final picker = ImagePicker();
-  int indice = -1;
   int aba = 0;
   bool ocupado = false;
   XFile? foto;
-  String aviso = 'Toque em Próximo para ler as publicações.';
+  XFile? fotoPostagem;
 
   Uri url(String pagina, Map<String, String> parametros) {
     final base = servidor.text.trim().replaceFirst(RegExp(r'/+$'), '');
@@ -71,17 +79,39 @@ class _AppTwitterState extends State<AppTwitter> {
     if (ocupado || texto.isEmpty) return;
     setState(() => ocupado = true);
     try {
-      final resposta = await http
-          .get(url('salva.php', {'txt': texto}))
-          .timeout(const Duration(seconds: 15));
-      if (!mounted) return;
-      if (resposta.statusCode != 200 ||
-          !utf8.decode(resposta.bodyBytes).contains('Texto salvo!')) {
-        throw const HttpException('O servidor não confirmou a publicação.');
+      if (widget.token == null || widget.token!.isEmpty) {
+        mensagem('Entre na sua conta para publicar.');
+        return;
       }
-      controller.clear();
+      if (fotoPostagem != null &&
+          await fotoPostagem!.length() > 8 * 1024 * 1024) {
+        mensagem('A foto deve ter no máximo 8 MB.');
+        return;
+      }
+      final pedido = http.MultipartRequest('POST', url('postagem.php', {}));
+      pedido.fields.addAll({'texto': texto, 'token': widget.token!});
+      if (fotoPostagem != null) {
+        pedido.files
+            .add(await http.MultipartFile.fromPath('foto', fotoPostagem!.path));
+      }
+      final resposta = await http.Response.fromStream(
+              await pedido.send().timeout(const Duration(seconds: 30)))
+          .timeout(const Duration(seconds: 30));
+      if (!mounted) return;
+      final dados = jsonDecode(utf8.decode(resposta.bodyBytes));
+      if (resposta.statusCode != 201) {
+        mensagem(dados is Map && dados['erro'] is String
+            ? dados['erro'] as String
+            : 'Não foi possível publicar.');
+        return;
+      }
+      setState(() {
+        controller.clear();
+        fotoPostagem = null;
+        versaoFeed++;
+      });
       FocusScope.of(context).unfocus();
-      mensagem('Publicação enviada! Toque em Próximo para continuar lendo.');
+      mensagem('Publicação enviada!');
     } catch (_) {
       mensagem('Não foi possível publicar. Confira o servidor e sua conexão.');
     } finally {
@@ -89,41 +119,21 @@ class _AppTwitterState extends State<AppTwitter> {
     }
   }
 
-  Future<void> proximo() async {
+  Future<void> anexarFoto(ImageSource origem) async {
     if (ocupado) return;
-    if (indice < historico.length - 1) {
-      setState(() => indice++);
-      return;
-    }
     setState(() => ocupado = true);
-    final ultimoId = historico.isEmpty ? 0 : historico.last['id'] as int;
     try {
-      final resposta = await http
-          .get(url('busca.php', {'id': '$ultimoId'}))
-          .timeout(const Duration(seconds: 15));
-      if (!mounted) return;
-      if (resposta.statusCode != 200) {
-        throw const HttpException('Falha na consulta');
+      final imagem = await picker.pickImage(
+          source: origem, maxWidth: 1600, imageQuality: 85);
+      if (imagem != null) {
+        if (await imagem.length() > 8 * 1024 * 1024) {
+          mensagem('A foto deve ter no máximo 8 MB.');
+          return;
+        }
+        if (mounted) setState(() => fotoPostagem = imagem);
       }
-      final dados = jsonDecode(utf8.decode(resposta.bodyBytes));
-      if (dados == null || (dados is Map && dados.isEmpty)) {
-        setState(() => aviso =
-            'Você chegou ao fim. Tente novamente após uma nova publicação.');
-        mensagem('Não há próximo texto disponível.');
-        return;
-      }
-      if (dados is! Map || dados['texto'] is! String) {
-        throw const FormatException();
-      }
-      final id = int.tryParse('${dados['id']}');
-      if (id == null || id <= ultimoId) throw const FormatException();
-      setState(() {
-        historico.add({'id': id, 'texto': dados['texto']});
-        indice = historico.length - 1;
-        aviso = '';
-      });
     } catch (_) {
-      mensagem('Não foi possível buscar o texto. Confira a API e a conexão.');
+      mensagem('Não foi possível selecionar a foto. Tente novamente.');
     } finally {
       if (mounted) setState(() => ocupado = false);
     }
@@ -174,9 +184,7 @@ class _AppTwitterState extends State<AppTwitter> {
     }
     setState(() {
       servidor.text = valor;
-      historico.clear();
-      indice = -1;
-      aviso = 'Servidor alterado. Toque em Próximo.';
+      versaoFeed++;
     });
   }
 
@@ -271,6 +279,37 @@ class _AppTwitterState extends State<AppTwitter> {
                                       onChanged: (_) => setState(() {}),
                                       decoration: const InputDecoration(
                                           hintText: 'O que está acontecendo?')),
+                                  Wrap(spacing: 8, children: [
+                                    TextButton.icon(
+                                        onPressed: ocupado
+                                            ? null
+                                            : () =>
+                                                anexarFoto(ImageSource.gallery),
+                                        icon: const Icon(Icons.image_outlined),
+                                        label: const Text('Adicionar foto')),
+                                    TextButton.icon(
+                                        onPressed: ocupado
+                                            ? null
+                                            : () =>
+                                                anexarFoto(ImageSource.camera),
+                                        icon: const Icon(
+                                            Icons.camera_alt_outlined),
+                                        label: const Text('Câmera')),
+                                  ]),
+                                  if (fotoPostagem != null) ...[
+                                    Image.file(File(fotoPostagem!.path),
+                                        height: 180,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) => const Text(
+                                            'Prévia indisponível. Selecione outra foto.')),
+                                    TextButton.icon(
+                                        onPressed: ocupado
+                                            ? null
+                                            : () => setState(
+                                                () => fotoPostagem = null),
+                                        icon: const Icon(Icons.close),
+                                        label: const Text('Remover foto')),
+                                  ],
                                   Align(
                                       alignment: Alignment.centerRight,
                                       child: FilledButton.icon(
@@ -282,65 +321,11 @@ class _AppTwitterState extends State<AppTwitter> {
                                               size: 18),
                                           label: const Text('Publicar'))),
                                   const Divider(height: 48),
-                                  const Text('Publicações',
-                                      style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 16),
-                                  Card(
-                                      child: Padding(
-                                          padding: const EdgeInsets.all(20),
-                                          child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Row(children: [
-                                                  const CircleAvatar(
-                                                      child: Icon(Icons
-                                                          .person_outline)),
-                                                  const SizedBox(width: 12),
-                                                  Expanded(
-                                                      child: Text(
-                                                          indice < 0
-                                                              ? 'Comunidade'
-                                                              : 'Comunidade • #${historico[indice]['id']}',
-                                                          style: const TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold)))
-                                                ]),
-                                                const SizedBox(height: 20),
-                                                SelectableText(
-                                                    indice < 0
-                                                        ? aviso
-                                                        : historico[indice]
-                                                            ['texto'] as String,
-                                                    style: const TextStyle(
-                                                        fontSize: 19,
-                                                        height: 1.5)),
-                                              ]))),
-                                  if (aviso.isNotEmpty && indice >= 0)
-                                    Padding(
-                                        padding: const EdgeInsets.all(12),
-                                        child: Text(aviso)),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        OutlinedButton.icon(
-                                            onPressed: ocupado || indice <= 0
-                                                ? null
-                                                : () =>
-                                                    setState(() => indice--),
-                                            icon: const Icon(Icons.arrow_back),
-                                            label: const Text('Voltar')),
-                                        FilledButton.icon(
-                                            onPressed: ocupado ? null : proximo,
-                                            icon:
-                                                const Icon(Icons.arrow_forward),
-                                            label: const Text('Próximo')),
-                                      ]),
+                                  FeedSocial(
+                                      key: ValueKey(
+                                          '${servidor.text}-$versaoFeed'),
+                                      baseUrl: servidor.text,
+                                      token: widget.token ?? ''),
                                   if (ocupado)
                                     const Padding(
                                         padding: EdgeInsets.only(top: 20),

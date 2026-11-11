@@ -30,6 +30,9 @@ void main() {
           (await SharedPreferences.getInstance()).getString('usuario'), isNull);
     },
         () => MockClient((r) async {
+              if (r.url.path.endsWith('social.php')) {
+                return http.Response('{"postagens":[],"mais":false}', 200);
+              }
               pedidos++;
               expect(r.url.path, '/api/login.php');
               return http.Response(
@@ -56,6 +59,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       expect(
           jsonDecode(prefs.getString('usuario')!)['email'], 'ana@example.com');
+      expect(jsonDecode(prefs.getString('usuario')!)['token'], 'token-teste');
       expect(prefs.getKeys(), isNot(contains('senha')));
       expect(prefs.getString('usuario'), isNot(contains('Senha123!')));
       await tester.pumpWidget(const SizedBox());
@@ -68,6 +72,9 @@ void main() {
       expect(prefs.getString('usuario'), isNull);
     },
         () => MockClient((r) async {
+              if (r.url.path.endsWith('social.php')) {
+                return http.Response('{"postagens":[],"mais":false}', 200);
+              }
               expect(r.url.path, '/api/cadastro.php');
               expect(r.bodyFields, {
                 'nome': 'Ana Silva',
@@ -76,6 +83,7 @@ void main() {
               });
               return http.Response(
                   jsonEncode({
+                    'token': 'token-teste',
                     'usuario': {
                       'id': 1,
                       'nome': 'Ana Silva',
@@ -100,11 +108,15 @@ void main() {
           contains('ana@example.com'));
     },
         () => MockClient((r) async {
+              if (r.url.path.endsWith('social.php')) {
+                return http.Response('{"postagens":[],"mais":false}', 200);
+              }
               expect(r.url.path, '/api/login.php');
               expect(r.bodyFields,
                   {'email': 'ana@example.com', 'senha': 'Senha123!'});
               return http.Response(
                   jsonEncode({
+                    'token': 'token-teste',
                     'usuario': {
                       'id': 1,
                       'nome': 'Ana',
@@ -113,5 +125,15 @@ void main() {
                   }),
                   200);
             }));
+  });
+  testWidgets('perfil antigo sem token exige novo login', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'usuario':
+          jsonEncode({'id': 1, 'nome': 'Ana', 'email': 'ana@example.com'})
+    });
+    await tester.pumpWidget(const MiniX());
+    await tester.pumpAndSettle();
+    expect(find.text('Bem-vindo ao Mini X'), findsOneWidget);
+    expect(find.text('Publicar'), findsNothing);
   });
 }

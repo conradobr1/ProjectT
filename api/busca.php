@@ -8,7 +8,7 @@ if ($id === false) {
     exit(json_encode(['erro' => 'ID inválido.'], JSON_UNESCAPED_UNICODE));
 }
 try {
-    $consulta = banco()->prepare('SELECT id, texto FROM publicacoes WHERE id > :id ORDER BY id ASC LIMIT 1');
+    $consulta = banco()->prepare("SELECT p.id, p.texto, u.nome, CASE WHEN p.foto IS NULL THEN NULL ELSE CONCAT('uploads/', p.foto) END AS foto_url FROM publicacoes p LEFT JOIN usuarios u ON u.id = p.usuario_id WHERE p.id > :id ORDER BY p.id ASC LIMIT 1");
     $consulta->bindValue(':id', $id, PDO::PARAM_INT);
     $consulta->execute();
     $item = $consulta->fetch();
