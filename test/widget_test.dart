@@ -8,7 +8,7 @@ void main() {
   testWidgets('publica e preserva ultimo texto no fim', (tester) async {
     final consultas = <String>[];
     await http.runWithClient(() async {
-      await tester.pumpWidget(const MiniX());
+      await tester.pumpWidget(const MaterialApp(home: AppTwitter()));
       await tester.enterText(find.byType(TextField), 'Ola, turma!');
       await tester.pump();
       await tester.tap(find.text('Publicar'));

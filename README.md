@@ -83,3 +83,16 @@ As fotos enviadas pelo app aparecem no site, e as enviadas pelo site aparecem no
 Análise estática do Flutter sem problemas; três testes de interface aprovados (publicações, galeria vazia e navegação de fotos). Sintaxe de todos os PHP validada. Upload real no XAMPP retornou 201; a descrição foi recuperada na listagem e os bytes da imagem foram conferidos por HTTP. Arquivo inválido e descrição vazia foram rejeitados. O teste temporário foi removido da galeria.
 
 A captura física da câmera depende do dispositivo. Para testar, tire uma foto no emulador/celular, envie com descrição e confira tanto a Galeria do app quanto http://localhost/api/ no computador. O projeto não foi enviado ao formulário do professor.
+
+## Login e cadastro
+
+Ao abrir o app, entre com e-mail e senha ou toque em **Criar uma conta** e informe nome, e-mail e senha (8 a 72 bytes UTF-8). O cadastro entra automaticamente no app. Use **Sair da conta** no topo para encerrar a sessão local.
+
+- Importe `api/usuarios.sql` no MySQL para adicionar a tabela sem apagar os dados existentes. Em instalações novas, `api/banco.sql` já contém todas as tabelas.
+- Copie também `autenticacao.php`, `cadastro.php` e `login.php` para a pasta da API no servidor, junto de `conexao.php`.
+- Na tela de entrada, **Configurar servidor** permite informar a URL da API. No emulador: `http://10.0.2.2/api`. No celular, use o IP do computador.
+- `POST cadastro.php`: campos `nome`, `email`, `senha`; retorna 201 com `usuario`. E-mail repetido retorna 409.
+- `POST login.php`: campos `email`, `senha`; retorna 200 com `usuario`. Credenciais incorretas retornam 401.
+- O MySQL guarda somente o hash da senha (`password_hash` / `password_verify`). As consultas usam parâmetros preparados.
+- O `shared_preferences` salva o perfil (ID, nome, e-mail) e a URL da API para manter o login entre aberturas. A senha não é salva no celular.
+- Este fluxo mantém uma sessão local. Os endpoints anteriores de publicações/fotos continuam públicos, sem autorização por usuário. Em hospedagem pública, use HTTPS e implemente tokens de sessão e limitação de tentativas antes de expor dados privados.

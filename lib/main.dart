@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'galeria.dart';
+import 'acesso.dart';
 
 void main() => runApp(const MiniX());
 
@@ -19,12 +20,18 @@ class MiniX extends StatelessWidget {
           inputDecorationTheme:
               const InputDecorationTheme(border: OutlineInputBorder()),
         ),
-        home: const AppTwitter(),
+        home: Acesso(
+            conteudo: (servidor, nome, sair) =>
+                AppTwitter(baseUrl: servidor, nomeUsuario: nome, aoSair: sair)),
       );
 }
 
 class AppTwitter extends StatefulWidget {
-  const AppTwitter({super.key});
+  const AppTwitter(
+      {super.key, this.baseUrl = apiPadrao, this.nomeUsuario, this.aoSair});
+  final String baseUrl;
+  final String? nomeUsuario;
+  final Future<void> Function()? aoSair;
   @override
   State<AppTwitter> createState() => _AppTwitterState();
 }
@@ -33,9 +40,7 @@ class _AppTwitterState extends State<AppTwitter> {
   final controller = TextEditingController();
   final descricao = TextEditingController();
   int versaoGaleria = 0;
-  final servidor = TextEditingController(
-      text: const String.fromEnvironment('API_URL',
-          defaultValue: 'http://10.0.2.2/api'));
+  late final servidor = TextEditingController(text: widget.baseUrl);
   final List<Map<String, dynamic>> historico = [];
   final picker = ImagePicker();
   int indice = -1;
@@ -224,6 +229,11 @@ class _AppTwitterState extends State<AppTwitter> {
             title: const Text('𝕏  Mini X',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             actions: [
+              if (widget.aoSair != null)
+                IconButton(
+                    onPressed: ocupado ? null : widget.aoSair,
+                    tooltip: 'Sair da conta',
+                    icon: const Icon(Icons.logout)),
               IconButton(
                   onPressed: ocupado ? null : configurar,
                   tooltip: 'Configurar servidor',
