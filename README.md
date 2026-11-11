@@ -8,7 +8,7 @@ Para continuar o desenvolvimento, clone este repositório e abra a pasta que con
 
 ## Funções
 
-- Publicar textos e ler o próximo texto por ID; voltar pelo histórico da sessão.
+- Publicar texto com foto opcional, ver as postagens de todos, curtir e interagir com amigos.
 - Tirar uma foto com image_picker e exibir a imagem capturada.
 - Enviar a foto com descrição por multipart/form-data para o site PHP.
 - Consultar todas as fotos salvas no servidor e navegar uma por vez na aba Galeria.
@@ -80,7 +80,7 @@ As fotos enviadas pelo app aparecem no site, e as enviadas pelo site aparecem no
 
 ## Validação
 
-Análise estática do Flutter sem problemas; três testes de interface aprovados (publicações, galeria vazia e navegação de fotos). Sintaxe de todos os PHP validada. Upload real no XAMPP retornou 201; a descrição foi recuperada na listagem e os bytes da imagem foram conferidos por HTTP. Arquivo inválido e descrição vazia foram rejeitados. O teste temporário foi removido da galeria.
+Análise estática do Flutter sem problemas; testes de interface aprovados (acesso, publicações, galeria e interações sociais). Sintaxe de todos os PHP validada. Upload real no XAMPP retornou 201; a descrição foi recuperada na listagem e os bytes da imagem foram conferidos por HTTP. Arquivo inválido e descrição vazia foram rejeitados. O teste temporário foi removido da galeria.
 
 A captura física da câmera depende do dispositivo. Para testar, tire uma foto no emulador/celular, envie com descrição e confira tanto a Galeria do app quanto http://localhost/api/ no computador. O projeto não foi enviado ao formulário do professor.
 
@@ -104,3 +104,27 @@ Na aba **Início**, escreva um texto de até 280 caracteres e, se quiser, toque 
 Para atualizar um banco existente sem apagar publicações, execute `C:/xampp/php/php.exe api/migrar_postagens.php`. A migração pode ser repetida. Copie os PHP atualizados para a pasta da API. Para banco novo, importe `api/banco.sql`.
 
 Login e cadastro agora retornam um token válido por 30 dias, salvo junto do perfil no `shared_preferences`. O banco guarda apenas o hash do token. O endpoint de postagem valida a sessão e determina o autor no servidor. Instalações com perfil antigo sem token precisam entrar novamente. A foto da publicação é independente dos envios da aba Câmera/Galeria.
+
+## Interação e amizade
+
+O **Início** exibe um feed com as postagens de todos, incluindo nome do autor, texto, foto opcional, curtidas e comentários. Use **Carregar mais postagens** para continuar e o ícone de atualizar para buscar novidades. Cada pessoa pode curtir uma vez por postagem; tocar novamente remove sua curtida.
+
+Na postagem de outra pessoa, toque em **Solicitar amizade**. Abra **Amizades** no cabeçalho do feed para ver solicitações recebidas, enviadas e amigos. Somente o destinatário pode **Aprovar** ou **Recusar** o pedido. Pedidos repetidos ou em sentidos opostos não criam amizades duplicadas nem aprovação automática.
+
+Todos os usuários logados podem ler as postagens e os comentários. Só é permitido **comentar em postagens de amigos com amizade aprovada**, nos dois sentidos. Antes da aprovação o campo de comentário fica bloqueado; o PHP também verifica a amizade e a sessão em cada envio. Comentários têm de 1 a 280 caracteres. A regra também impede comentar a própria postagem, pois o autor não é amigo de si mesmo.
+
+### Atualizar banco e API
+
+Execute `C:/xampp/php/php.exe api/migrar_postagens.php` para criar as tabelas de amizades, curtidas e comentários sem apagar dados. A migração pode ser repetida. Instalações novas podem importar `api/banco.sql`. Copie os PHP atualizados para o servidor; se executar a migração na cópia do servidor, copie também `sessoes.sql` e `interacoes.sql`.
+
+`POST social.php` recebe `token` da sessão e `acao`:
+
+- `feed`: postagens de todos, 20 por página; `antes` é o último ID da página anterior.
+- `curtir`: `publicacao_id` e `curtir` (`1` para curtir, `0` para remover).
+- `comentarios`: `publicacao_id`; `apos` pagina a lista, com 30 comentários por página.
+- `comentar`: `publicacao_id` e `texto`; exige amizade aprovada com o autor.
+- `solicitar`: `usuario_id` do autor.
+- `amizades`: lista de amigos e solicitações recebidas/enviadas.
+- `responder`: `usuario_id` do solicitante e `aceitar` (`1` aprovar, `0` recusar).
+
+As ações determinam a identidade pelo token e não confiam em um ID do usuário logado enviado pelo aplicativo. Os testes Flutter cobrem o feed, curtidas, pedidos, aprovação e comentários. Com o XAMPP local ligado, execute `py -3 test/api_social_test.py` para conferir as regras e a paginação na API real. Esse teste cria e remove somente suas três contas temporárias e os registros delas.
